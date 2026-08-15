@@ -3,11 +3,23 @@ from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from . import auth, models, schemas
+from .consul_registration import deregister as consul_deregister
+from .consul_registration import register as consul_register
 from .database import Base, engine, get_db
 
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="users-svc")
+
+
+@app.on_event("startup")
+def on_startup():
+    consul_register()
+
+
+@app.on_event("shutdown")
+def on_shutdown():
+    consul_deregister()
 
 
 @app.get("/healthz")

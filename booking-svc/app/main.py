@@ -1,23 +1,32 @@
 import datetime
 import logging
-import os
+
 import httpx
 from fastapi import Depends, FastAPI, HTTPException
 from sqlalchemy import text
 from sqlalchemy.orm import Session
+
 from . import models, schemas
 from .auth import get_current_user_id
+from .consul_registration import deregister, discover_service, register
 from .database import Base, SessionLocal, engine, get_db
 
 logger = logging.getLogger("booking-svc")
 logging.basicConfig(level=logging.INFO)
 
-NOTIF_SVC_URL = os.getenv("NOTIF_SVC_URL", "http://notif-svc:8002")
-
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="booking-svc")
 
+
+@app.on_event("startup")
+def on_startup_register():
+    register()
+
+
+@app.on_event("shutdown")
+def on_shutdown():
+    deregister()
 
 SEED_CLASSES = [
     {"name": "Yoga", "instructor": "Ana Lopez", "offset_days": 1, "capacity": 15},
@@ -67,14 +76,15 @@ def list_classes(db: Session = Depends(get_db)):
 
 
 def _notify(user_id: int, message: str):
-    """Llamada best-effort a notif-svc. El Task 3 le agrega resiliencia real."""
+    """Llamada best-effort a notif-svc, descubierto dinámicamente via Consul."""
     try:
+        notif_url = discover_service("notif-svc")
         httpx.post(
-            f"{NOTIF_SVC_URL}/notifications",
+            f"{notif_url}/notifications",
             json={"user_id": user_id, "message": message},
             timeout=2.0,
         )
-    except httpx.HTTPError as exc:
+    except (httpx.HTTPError, RuntimeError) as exc:
         logger.warning("no se pudo notificar a notif-svc: %s", exc)
 
 

@@ -7,3 +7,4 @@ pyjwt==2.8.0
 passlib[bcrypt]==1.7.4
 pydantic[email]==2.7.1
 python-multipart==0.0.9
+python-consul2==0.1.5

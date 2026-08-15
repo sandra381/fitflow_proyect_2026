@@ -1,6 +1,12 @@
 version: "3.9"
 
 services:
+  consul:
+    image: hashicorp/consul:1.17
+    ports:
+      - "8500:8500"
+    command: agent -dev -client=0.0.0.0
+
   users-db:
     image: mysql:8.0
     environment:
@@ -54,9 +60,14 @@ services:
       DATABASE_URL: mysql+pymysql://${USERS_DB_USER}:${USERS_DB_PASSWORD}@users-db:3306/${USERS_DB_NAME}
       JWT_SECRET: ${JWT_SECRET}
       JWT_EXPIRE_MINUTES: ${JWT_EXPIRE_MINUTES}
+      CONSUL_HOST: consul
+      CONSUL_PORT: 8500
+      SERVICE_ADDRESS: users-svc
     depends_on:
       users-db:
         condition: service_healthy
+      consul:
+        condition: service_started
 
   booking-svc:
     build: ./booking-svc
@@ -65,11 +76,14 @@ services:
     environment:
       DATABASE_URL: mysql+pymysql://${BOOKING_DB_USER}:${BOOKING_DB_PASSWORD}@booking-db:3306/${BOOKING_DB_NAME}
       JWT_SECRET: ${JWT_SECRET}
-      # Fijo por ahora -- se ajusta cuando definamos la capa de comunicacion entre servicios.
-      NOTIF_SVC_URL: http://notif-svc:8002
+      CONSUL_HOST: consul
+      CONSUL_PORT: 8500
+      SERVICE_ADDRESS: booking-svc
     depends_on:
       booking-db:
         condition: service_healthy
+      consul:
+        condition: service_started
 
   notif-svc:
     build: ./notif-svc
@@ -77,10 +91,29 @@ services:
       - "8002:8002"
     environment:
       DATABASE_URL: mysql+pymysql://${NOTIF_DB_USER}:${NOTIF_DB_PASSWORD}@notif-db:3306/${NOTIF_DB_NAME}
+      CONSUL_HOST: consul
+      CONSUL_PORT: 8500
+      SERVICE_ADDRESS: notif-svc
     depends_on:
       notif-db:
         condition: service_healthy
+      consul:
+        condition: service_started
 
+  fitflow-mcp:
+    build: ./fitflow-mcp
+    ports:
+      - "8000:8000"
+    environment:
+      CONSUL_HOST: consul
+      CONSUL_PORT: 8500
+      DEMO_USER_EMAIL: ${DEMO_USER_EMAIL}
+      DEMO_USER_PASSWORD: ${DEMO_USER_PASSWORD}
+    depends_on:
+      - consul
+      - users-svc
+      - booking-svc
+      
 volumes:
   users_db_data:
   booking_db_data:

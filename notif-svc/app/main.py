@@ -12,6 +12,17 @@ Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="notif-svc")
 
+from .consul_registration import deregister, register  # agregar al import existente
+
+@app.on_event("startup")
+def on_startup():
+    register()
+
+
+@app.on_event("shutdown")
+def on_shutdown():
+    deregister()
+
 
 @app.get("/healthz")
 def healthz():
