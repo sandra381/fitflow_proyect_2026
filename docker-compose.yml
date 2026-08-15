@@ -1,0 +1,87 @@
+version: "3.9"
+
+services:
+  users-db:
+    image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: ${USERS_DB_PASSWORD}
+      MYSQL_USER: ${USERS_DB_USER}
+      MYSQL_PASSWORD: ${USERS_DB_PASSWORD}
+      MYSQL_DATABASE: ${USERS_DB_NAME}
+    volumes:
+      - users_db_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -u${USERS_DB_USER} -p${USERS_DB_PASSWORD} --silent"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  booking-db:
+    image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: ${BOOKING_DB_PASSWORD}
+      MYSQL_USER: ${BOOKING_DB_USER}
+      MYSQL_PASSWORD: ${BOOKING_DB_PASSWORD}
+      MYSQL_DATABASE: ${BOOKING_DB_NAME}
+    volumes:
+      - booking_db_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -u${BOOKING_DB_USER} -p${BOOKING_DB_PASSWORD} --silent"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  notif-db:
+    image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: ${NOTIF_DB_PASSWORD}
+      MYSQL_USER: ${NOTIF_DB_USER}
+      MYSQL_PASSWORD: ${NOTIF_DB_PASSWORD}
+      MYSQL_DATABASE: ${NOTIF_DB_NAME}
+    volumes:
+      - notif_db_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -u${NOTIF_DB_USER} -p${NOTIF_DB_PASSWORD} --silent"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  users-svc:
+    build: ./users-svc
+    ports:
+      - "8003:8003"
+    environment:
+      DATABASE_URL: mysql+pymysql://${USERS_DB_USER}:${USERS_DB_PASSWORD}@users-db:3306/${USERS_DB_NAME}
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRE_MINUTES: ${JWT_EXPIRE_MINUTES}
+    depends_on:
+      users-db:
+        condition: service_healthy
+
+  booking-svc:
+    build: ./booking-svc
+    ports:
+      - "8001:8001"
+    environment:
+      DATABASE_URL: mysql+pymysql://${BOOKING_DB_USER}:${BOOKING_DB_PASSWORD}@booking-db:3306/${BOOKING_DB_NAME}
+      JWT_SECRET: ${JWT_SECRET}
+      # Fijo por ahora -- se ajusta cuando definamos la capa de comunicacion entre servicios.
+      NOTIF_SVC_URL: http://notif-svc:8002
+    depends_on:
+      booking-db:
+        condition: service_healthy
+
+  notif-svc:
+    build: ./notif-svc
+    ports:
+      - "8002:8002"
+    environment:
+      DATABASE_URL: mysql+pymysql://${NOTIF_DB_USER}:${NOTIF_DB_PASSWORD}@notif-db:3306/${NOTIF_DB_NAME}
+    depends_on:
+      notif-db:
+        condition: service_healthy
+
+volumes:
+  users_db_data:
+  booking_db_data:
+  notif_db_data:
