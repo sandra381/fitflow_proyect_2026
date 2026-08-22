@@ -95,6 +95,11 @@ Luego, en el chat de Claude Desktop:
 Resérvame la clase de yoga
 ```
 
+## Links a videos de entregas
+- https://drive.google.com/file/d/1ynJ5Y4whbLwhUsP3OgLkKPG_uF3HwyW-/view?usp=sharing
+
+
+
 ## Próximos pasos
 
 - [x] Task 2: Consul + servidor MCP
