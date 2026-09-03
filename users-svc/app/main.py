@@ -6,10 +6,12 @@ from . import auth, models, schemas
 from .consul_registration import deregister as consul_deregister
 from .consul_registration import register as consul_register
 from .database import Base, engine, get_db
+from .observability import CorrelationIdMiddleware, logger
 
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="users-svc")
+app.add_middleware(CorrelationIdMiddleware)
 
 
 @app.on_event("startup")
@@ -50,6 +52,7 @@ def register(payload: schemas.UserCreate, db: Session = Depends(get_db)):
     db.add(user)
     db.commit()
     db.refresh(user)
+    logger.info("user_registered", user_id=user.id)
     return user
 
 
@@ -60,6 +63,7 @@ def login(payload: schemas.UserLogin, db: Session = Depends(get_db)):
         raise HTTPException(status_code=401, detail="invalid credentials")
 
     token = auth.create_access_token(user.id, user.email)
+    logger.info("user_logged_in", user_id=user.id)
     return schemas.TokenOut(access_token=token)
 
 

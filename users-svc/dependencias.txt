@@ -9,3 +9,4 @@ pydantic[email]==2.7.1
 python-multipart==0.0.9
 python-consul2==0.1.5
 bcrypt==4.0.1
+structlog==24.1.0

@@ -1,18 +1,17 @@
-import logging
 from fastapi import Depends, FastAPI, HTTPException
 from sqlalchemy import text
 from sqlalchemy.orm import Session
-from . import models, schemas
-from .database import Base, engine, get_db
 
-logger = logging.getLogger("notif-svc")
-logging.basicConfig(level=logging.INFO)
+from . import models, schemas
+from .consul_registration import deregister, register
+from .database import Base, engine, get_db
+from .observability import CorrelationIdMiddleware, logger
 
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="notif-svc")
+app.add_middleware(CorrelationIdMiddleware)
 
-from .consul_registration import deregister, register  # agregar al import existente
 
 @app.on_event("startup")
 def on_startup():
@@ -40,7 +39,9 @@ def readyz(db: Session = Depends(get_db)):
 
 @app.post("/notifications", response_model=schemas.NotificationOut, status_code=201)
 def send_notification(payload: schemas.NotificationCreate, db: Session = Depends(get_db)):
-    logger.info("notificación para user_id=%s: %s", payload.user_id, payload.message)
+    # Por ahora "enviar" es solo loguear + guardar. Se puede reemplazar por
+    # email/SMS real más adelante sin tocar a booking-svc.
+    logger.info("notification_received", user_id=payload.user_id, message=payload.message)
 
     notification = models.Notification(user_id=payload.user_id, message=payload.message)
     db.add(notification)

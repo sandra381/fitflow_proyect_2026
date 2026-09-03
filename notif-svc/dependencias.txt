@@ -8,3 +8,4 @@ passlib[bcrypt]==1.7.4
 pydantic[email]==2.7.1
 python-multipart==0.0.9
 python-consul2==0.1.5
+structlog==24.1.0
