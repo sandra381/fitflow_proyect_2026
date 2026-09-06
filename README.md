@@ -3,9 +3,10 @@
 Plataforma de reservas de clases fitness con arquitectura de microservicios.
 Postgrado en Diseño y Desarrollo de Software — Universidad Galileo, FISICC.
 
-> **Estado:** Task 1, Task 2 y Task 3 completados (microservicios + Docker, Consul + MCP Server, resiliencia + logs estructurados).
+> **Estado:** Task 1, 2, 3 y 4 completados (microservicios + Docker, Consul + MCP Server,
+> resiliencia + logs estructurados, seguridad reforzada).
 
-## Arquitectura (Task 1 + Task 2 + Task 3)
+## Arquitectura
 
 Tres servicios independientes, cada uno con su propia base de datos MySQL.
 Ningún servicio accede a la base de datos de otro directamente. Todos se
@@ -63,7 +64,7 @@ curl http://localhost:8001/healthz
 curl http://localhost:8002/healthz
 ```
 
-## Consul + MCP Server (Task 2)
+## Consul + MCP Server
 
 Abre `http://localhost:8500` para ver los 3 servicios registrados con sus
 health checks en verde.
@@ -96,7 +97,7 @@ Luego, en el chat de Claude Desktop:
 Resérvame la clase de yoga
 ```
 
-## Resiliencia + Logs estructurados (Task 3)
+## Resiliencia + Logs estructurados
 
 `booking-svc` no depende de que `notif-svc` esté siempre disponible:
 
@@ -133,14 +134,71 @@ docker compose logs booking-svc | grep booking_created
 docker compose logs notif-svc | grep notification_received
 ```
 
+## Seguridad
+
+### JWT en todos los endpoints protegidos
+
+- El token incluye `sub` (user_id) y `exp` (expiración).
+- `POST /bookings` y `DELETE /bookings/{id}` en `booking-svc` requieren un
+  token válido (`Authorization: Bearer <token>`).
+- Token ausente, inválido o expirado → `401 Unauthorized`.
+- El `user_id` extraído del token queda pegado a todos los logs del
+  request, junto al `correlation_id` (ver Task 3B).
+
+### Gestión de secretos
+
+Ningún password ni secreto vive en el código. Todo se inyecta por
+variables de entorno (`.env`, excluido del repo vía `.gitignore`):
+`USERS_DB_PASSWORD`, `BOOKING_DB_PASSWORD`, `NOTIF_DB_PASSWORD`,
+`JWT_SECRET`, `DEMO_USER_PASSWORD`.
+
+### Rotación de credenciales (sin downtime)
+
+**Rotar `JWT_SECRET`:** `booking-svc` puede validar tokens firmados con el
+secreto actual **y**, temporalmente, con uno anterior — esto permite
+rotar sin invalidar de golpe las sesiones activas.
+
+1. Genera un secreto nuevo.
+2. En `.env`, copia el valor actual de `JWT_SECRET` a `JWT_SECRET_PREVIOUS`,
+   y pon el secreto nuevo en `JWT_SECRET`.
+3. Reinicia solo los servicios que usan JWT:
+   ```bash
+   docker compose up -d --force-recreate users-svc booking-svc
+   ```
+4. A partir de aquí, `users-svc` firma con el secreto nuevo, y `booking-svc`
+   acepta tokens firmados con cualquiera de los dos — nadie es
+   desconectado de golpe.
+5. Espera a que pase `JWT_EXPIRE_MINUTES` (60 min por defecto) para que
+   todos los tokens viejos hayan expirado de forma natural.
+6. Quita `JWT_SECRET_PREVIOUS` de `.env` y repite el paso 3 para retirar
+   por completo el secreto viejo.
+
+**Rotar el password de una base de datos** (ejemplo con `users-db`):
+
+1. Conéctate al contenedor y cambia el password del usuario de la app,
+   sin tocar la base de datos ni perder datos:
+   ```bash
+   docker compose exec users-db mysql -u root -p"$USERS_DB_PASSWORD" \
+     -e "ALTER USER 'users_user'@'%' IDENTIFIED BY 'nuevo-password-seguro'; FLUSH PRIVILEGES;"
+   ```
+2. Actualiza `USERS_DB_PASSWORD` en `.env` con el nuevo valor.
+3. Reinicia solo el servicio afectado (unos segundos de interrupción,
+   no hace falta bajar todo el sistema):
+   ```bash
+   docker compose up -d --force-recreate users-svc
+   ```
+
+El mismo procedimiento aplica para `booking-db`/`booking-svc` y
+`notif-db`/`notif-svc`, cambiando los nombres correspondientes.
+
 ## Links a videos de entregas
 - Checkpoint 1: https://drive.google.com/file/d/1ynJ5Y4whbLwhUsP3OgLkKPG_uF3HwyW-/view?usp=sharing
-- Checkpoint 2:
-- Checkpoint 3:
+- Checkpoint Task 4: https://drive.google.com/file/d/1grvPnB7EhCVX06JDlodceTvY9xnVjY3y/view?usp=sharing
+- Checkpoint Task 5:
 
 ## Próximos pasos
 
 - [x] Task 2: Consul + servidor MCP
 - [x] Task 3: Resiliencia + logs estructurados
-- [ ] Task 4: Seguridad + demo grabada
+- [x] Task 4: Seguridad + demo grabada
 - [ ] Task 5: Agent-to-Agent (A2A)

@@ -76,6 +76,8 @@ services:
     environment:
       DATABASE_URL: mysql+pymysql://${BOOKING_DB_USER}:${BOOKING_DB_PASSWORD}@booking-db:3306/${BOOKING_DB_NAME}
       JWT_SECRET: ${JWT_SECRET}
+      # Solo se usa durante una rotación de JWT_SECRET (ver README).
+      JWT_SECRET_PREVIOUS: ${JWT_SECRET_PREVIOUS:-}
       CONSUL_HOST: consul
       CONSUL_PORT: 8500
       SERVICE_ADDRESS: booking-svc
@@ -113,7 +115,7 @@ services:
       - consul
       - users-svc
       - booking-svc
-      
+
 volumes:
   users_db_data:
   booking_db_data:
