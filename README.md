@@ -3,10 +3,11 @@
 Plataforma de reservas de clases fitness con arquitectura de microservicios.
 Postgrado en Diseño y Desarrollo de Software — Universidad Galileo, FISICC.
 
-> **Estado:** Task 1, 2, 3 , 4 y 5 completados (microservicios + Docker, Consul + MCP Server,
-> resiliencia + logs estructurados, seguridad reforzada y Agent-to-Agent).
+> **Estado:** Task 1, 2, 3, 4 y 5 completados (microservicios + Docker,
+> Consul + MCP Server, resiliencia + logs estructurados, seguridad
+> reforzada, arquitectura Agent-to-Agent).
 
-## Arquitectura
+## Arquitectura (Task 1 + Task 2 + Task 3 + Task 4 + Task 5)
 
 Tres servicios independientes, cada uno con su propia base de datos MySQL.
 Ningún servicio accede a la base de datos de otro directamente. Todos se
@@ -36,7 +37,10 @@ Claude Desktop
 | `booking-svc` | 8001 | `GET /classes`, `POST /bookings`, `DELETE /bookings/{id}`, `GET /circuit-status` |
 | `notif-svc` | 8002 | `POST /notifications`, `GET /notifications/{user_id}` |
 | `consul` | 8500 | UI del service registry |
-| `fitflow-mcp` | 8000 | Servidor MCP: `get_available_classes`, `create_booking`, `cancel_booking` |
+| `fitflow-mcp` | 8000 | Servidor MCP: `get_available_classes`, `create_booking`, `cancel_booking`, `send_notification`, `get_notification_history` |
+| `orchestrator-agent` | 9000 | `POST /instruct`, `GET /.well-known/agent.json` |
+| `booking-agent` | 9001 | `POST /tasks`, `GET /.well-known/agent.json` |
+| `notification-agent` | 9002 | `POST /tasks`, `GET /.well-known/agent.json` |
 
 Todos los servicios de aplicación exponen `/healthz` y `/readyz`.
 `POST /bookings` y `DELETE /bookings/{id}` requieren JWT
@@ -47,7 +51,7 @@ Todos los servicios de aplicación exponen `/healthz` y `/readyz`.
 Python + FastAPI · MySQL 8 (una instancia por servicio) · SQLAlchemy ·
 JWT (PyJWT + bcrypt) · Consul · MCP (protocolo, SDK oficial de Python) ·
 tenacity + pybreaker (resiliencia) · structlog (logs JSON) ·
-Docker + Docker Compose
+Agent Cards + delegación estilo A2A · Docker + Docker Compose
 
 ## Cómo correr el proyecto
 
@@ -64,7 +68,7 @@ curl http://localhost:8001/healthz
 curl http://localhost:8002/healthz
 ```
 
-## Consul + MCP Server
+## Consul + MCP Server (Task 2)
 
 Abre `http://localhost:8500` para ver los 3 servicios registrados con sus
 health checks en verde.
@@ -97,7 +101,7 @@ Luego, en el chat de Claude Desktop:
 Resérvame la clase de yoga
 ```
 
-## Resiliencia + Logs estructurados
+## Resiliencia + Logs estructurados (Task 3)
 
 `booking-svc` no depende de que `notif-svc` esté siempre disponible:
 
@@ -134,7 +138,7 @@ docker compose logs booking-svc | grep booking_created
 docker compose logs notif-svc | grep notification_received
 ```
 
-## Seguridad
+## Seguridad (Task 4)
 
 ### JWT en todos los endpoints protegidos
 
@@ -166,7 +170,7 @@ rotar sin invalidar de golpe las sesiones activas.
    docker compose up -d --force-recreate users-svc booking-svc
    ```
 4. A partir de aquí, `users-svc` firma con el secreto nuevo, y `booking-svc`
-   acepta tokens firmados con cualquiera de los dos — nadie es
+   acepta tokens firmados con **cualquiera** de los dos — nadie es
    desconectado de golpe.
 5. Espera a que pase `JWT_EXPIRE_MINUTES` (60 min por defecto) para que
    todos los tokens viejos hayan expirado de forma natural.
