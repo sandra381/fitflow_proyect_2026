@@ -3,8 +3,8 @@
 Plataforma de reservas de clases fitness con arquitectura de microservicios.
 Postgrado en Diseño y Desarrollo de Software — Universidad Galileo, FISICC.
 
-> **Estado:** Task 1, 2, 3 y 4 completados (microservicios + Docker, Consul + MCP Server,
-> resiliencia + logs estructurados, seguridad reforzada).
+> **Estado:** Task 1, 2, 3 , 4 y 5 completados (microservicios + Docker, Consul + MCP Server,
+> resiliencia + logs estructurados, seguridad reforzada y Agent-to-Agent).
 
 ## Arquitectura
 
