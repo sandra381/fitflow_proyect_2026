@@ -116,6 +116,44 @@ services:
       - users-svc
       - booking-svc
 
+  booking-agent:
+    build: ./booking-agent
+    ports:
+      - "9001:9001"
+    environment:
+      CONSUL_HOST: consul
+      CONSUL_PORT: 8500
+      SERVICE_ADDRESS: booking-agent
+      FITFLOW_MCP_URL: http://fitflow-mcp:8000/sse
+    depends_on:
+      - consul
+      - fitflow-mcp
+
+  notification-agent:
+    build: ./notification-agent
+    ports:
+      - "9002:9002"
+    environment:
+      CONSUL_HOST: consul
+      CONSUL_PORT: 8500
+      SERVICE_ADDRESS: notification-agent
+      FITFLOW_MCP_URL: http://fitflow-mcp:8000/sse
+    depends_on:
+      - consul
+      - fitflow-mcp
+
+  orchestrator-agent:
+    build: ./orchestrator-agent
+    ports:
+      - "9000:9000"
+    environment:
+      CONSUL_HOST: consul
+      CONSUL_PORT: 8500
+      SERVICE_ADDRESS: orchestrator-agent
+    depends_on:
+      - consul
+      - booking-agent
+      - notification-agent
 volumes:
   users_db_data:
   booking_db_data:

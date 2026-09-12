@@ -191,14 +191,78 @@ rotar sin invalidar de golpe las sesiones activas.
 El mismo procedimiento aplica para `booking-db`/`booking-svc` y
 `notif-db`/`notif-svc`, cambiando los nombres correspondientes.
 
+## Agent-to-Agent (Task 5)
+
+En vez de que el usuario hable directo con el servidor MCP, ahora hay una
+red de agentes especializados que se descubren y se delegan trabajo entre
+sí, usando un protocolo inspirado en A2A (Agent-to-Agent, de Google).
+
+```
+Usuario ── instrucción en lenguaje natural ──► Orchestrator Agent (:9000)
+                                                        │
+                        descubre agentes via Consul + Agent Card
+                                                        │
+                         ┌──────────────────────────────┴───────────────────────────┐
+                         ▼                                                          ▼
+                Booking Agent (:9001)                                 Notification Agent (:9002)
+              skills: get_available_classes,                          skills: send_notification,
+              create_booking, cancel_booking                                get_history
+                         │                                                          │
+                         └──────────────── MCP (SSE) ──────────────────────────────┘
+                                                        ▼
+                                          fitflow-mcp (:8000)
+                                                        ▼
+                                     booking-svc / notif-svc (via Consul)
+```
+
+### MCP vs A2A
+
+- **MCP** responde: ¿cómo un agente usa un sistema externo? Lo usa
+  Claude Desktop para hablar con FitFlow directamente (Task 2).
+- **A2A** responde: ¿cómo un agente le delega trabajo a otro agente? El
+  Orchestrator no sabe reservar ni notificar — sabe **a quién pedírselo**.
+
+Cada agente publica un **Agent Card** en `/.well-known/agent.json`
+(análogo a lo que Consul hace para microservicios, pero para
+capacidades de un agente en vez de para su dirección de red):
+
+```bash
+curl http://localhost:9001/.well-known/agent.json   # Booking Agent
+curl http://localhost:9002/.well-known/agent.json   # Notification Agent
+curl http://localhost:9000/.well-known/agent.json   # Orchestrator
+```
+
+Booking Agent y Notification Agent no tienen lógica de negocio propia:
+cada `skill` de su Agent Card mapea 1 a 1 a una herramienta real del
+servidor MCP de FitFlow, a la que se conectan como **clientes MCP**
+(no HTTP directo a los microservicios).
+
+### Demo
+
+```bash
+curl -X POST http://localhost:9000/instruct \
+  -H "Content-Type: application/json" \
+  -d '{"text":"Reserva yoga y avísame por notificación"}'
+```
+
+La respuesta trae el resultado final (`booking`, `notification`) y un
+`a2a_trace` con la secuencia completa de descubrimientos y delegaciones.
+Para ver los logs de la comunicación A2A en vivo:
+
+```bash
+docker compose logs orchestrator-agent | grep "\[A2A\]"
+docker compose logs booking-agent | grep "\[A2A\]"
+docker compose logs notification-agent | grep "\[A2A\]"
+```
+
 ## Links a videos de entregas
 - Checkpoint 1: https://drive.google.com/file/d/1ynJ5Y4whbLwhUsP3OgLkKPG_uF3HwyW-/view?usp=sharing
 - Checkpoint Task 4: https://drive.google.com/file/d/1grvPnB7EhCVX06JDlodceTvY9xnVjY3y/view?usp=sharing
-- Checkpoint Task 5:
+- Checkpoint Task 5: https://drive.google.com/file/d/12KK9vjaALX8-hNWECEY2QADLEmEPeAV5/view?usp=sharing
 
 ## Próximos pasos
 
 - [x] Task 2: Consul + servidor MCP
 - [x] Task 3: Resiliencia + logs estructurados
 - [x] Task 4: Seguridad + demo grabada
-- [ ] Task 5: Agent-to-Agent (A2A)
+- [x] Task 5: Agent-to-Agent (A2A)

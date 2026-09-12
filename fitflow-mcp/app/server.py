@@ -49,6 +49,26 @@ def cancel_booking(booking_id: int) -> dict:
     resp.raise_for_status()
     return resp.json()
 
+@mcp.tool()
+def send_notification(user_id: int, message: str) -> dict:
+    """Envía una notificación directa a un usuario de FitFlow."""
+    notif_url = discover_service("notif-svc")
+    resp = httpx.post(
+        f"{notif_url}/notifications",
+        json={"user_id": user_id, "message": message},
+        timeout=5.0,
+    )
+    resp.raise_for_status()
+    return resp.json()
+
+
+@mcp.tool()
+def get_notification_history(user_id: int) -> list[dict]:
+    """Consulta el historial de notificaciones de un usuario de FitFlow."""
+    notif_url = discover_service("notif-svc")
+    resp = httpx.get(f"{notif_url}/notifications/{user_id}", timeout=5.0)
+    resp.raise_for_status()
+    return resp.json()
 
 if __name__ == "__main__":
     mcp.run(transport="sse")
